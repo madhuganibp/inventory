@@ -1,4 +1,5 @@
 
+
 package com.bhavana.inventory;
 
 import org.junit.jupiter.api.Test;
@@ -7,7 +8,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -21,12 +24,25 @@ class ItemControllerTest {
         String json = """
           {"sku":"SKU-1001","name":"Keyboard","quantity":10,"price":29.99}
         """;
-        mvc.perform(post("/api/items").contentType(MediaType.APPLICATION_JSON).content(json))
-           .andExpect(status().isCreated())
-           .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/api/items/")));
 
-        mvc.perform(get("/api/items")).andExpect(status().isOk());
+        // Create the item and capture the Location header with its server-generated id
+        MvcResult result = mvc.perform(post("/api/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", containsString("/api/items/")))
+                .andReturn();
 
-        mvc.perform(patch("/api/items/1/adjust?delta=-2")).andExpect(status().isOk());
+        String location = result.getResponse().getHeader("Location");
+        String id = location.substring(location.lastIndexOf('/') + 1);
+
+        // Verify listing works
+        mvc.perform(get("/api/items"))
+                .andExpect(status().isOk());
+
+        // Adjust quantity using the actual id (no hardcoded 1)
+        mvc.perform(patch("/api/items/" + id + "/adjust?delta=-2"))
+                .andExpect(status().isOk());
     }
 }
+
